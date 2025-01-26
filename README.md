@@ -10,7 +10,10 @@ A Telegram bot that helps you discover who doesn't follow you back on GitHub and
 - Simple to use - just send your GitHub username
 - Sanitizes inputs for security
 - Detailed logging of bot usage
-- Rate limiting protection with remaining limit display
+- Rate limiting protection:
+  - GitHub API rate limiting with remaining limit display
+  - User message rate limiting (3 messages per minute)
+  - Temporary blocks (30 seconds) for excessive usage
 - Support for GitHub API authentication for higher rate limits
 
 ## Usage
@@ -21,6 +24,8 @@ A Telegram bot that helps you discover who doesn't follow you back on GitHub and
 4. You'll receive:
    - A list of users who don't follow you back
    - A list of users who follow you that you don't follow back
+
+Note: To prevent abuse, there's a limit of 3 messages per minute. Exceeding this will result in a 30-second temporary block.
 
 ## Setup Your Own Instance
 

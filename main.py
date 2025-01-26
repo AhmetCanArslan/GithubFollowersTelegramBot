@@ -98,23 +98,39 @@ async def handle_response(username: str) -> str:
         following_url = f"https://api.github.com/users/{clean_username}/following"
         
         try:
-            # Fetch followers and following with timeout
-            followers_response = requests.get(followers_url, timeout=10)
-            following_response = requests.get(following_url, timeout=10)
+            # Fetch all followers with pagination
+            followers = set()
+            page = 1
+            while True:
+                followers_response = requests.get(
+                    f"{followers_url}?page={page}&per_page=100",
+                    timeout=10
+                )
+                if followers_response.status_code != 200 or not followers_response.json():
+                    break
+                followers.update(user['login'] for user in followers_response.json())
+                page += 1
+
+            # Fetch all following with pagination
+            following = set()
+            page = 1
+            while True:
+                following_response = requests.get(
+                    f"{following_url}?page={page}&per_page=100",
+                    timeout=10
+                )
+                if following_response.status_code != 200 or not following_response.json():
+                    break
+                following.update(user['login'] for user in following_response.json())
+                page += 1
+
         except requests.Timeout:
             return "GitHub API yanıt vermedi. Lütfen daha sonra tekrar deneyin."
         except requests.RequestException:
             return "Bağlantı hatası oluştu. Lütfen daha sonra tekrar deneyin."
-        
+
         if followers_response.status_code == 404 or following_response.status_code == 404:
             return "Kullanıcı adı bulunamadı. Lütfen geçerli bir GitHub kullanıcı adı girin."
-        
-        if followers_response.status_code != 200 or following_response.status_code != 200:
-            return "GitHub API'sine erişimde bir sorun oluştu. Lütfen daha sonra tekrar deneyin."
-        
-        # Extract usernames from responses
-        followers = set(user['login'] for user in followers_response.json())
-        following = set(user['login'] for user in following_response.json())
         
         # Find users who don't follow back
         unfollowers = following - followers

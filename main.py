@@ -134,10 +134,10 @@ async def handle_response(username: str) -> str:
         if not unfollowers:
             return f"Harika! Takip ettiğiniz herkes sizi geri takip ediyor!\n\nCongratulations! Everyone you follow is following you back!"
         
-        # Create response message
+        # Create response message with markdown links
         response = f"Users not following you\n\nSizi takip etmeyen kullanıcılar ({len(unfollowers)}):\n\n"
         for user in sorted(unfollowers):
-            response += f"• {user}\n"
+            response += f"• [{user}](https://github.com/{user})\n"
         
         return response
         
@@ -159,7 +159,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         response = await handle_response(text)
     
-    await update.message.reply_text(response)
+    await update.message.reply_text(response, parse_mode='Markdown', disable_web_page_preview=True)
     log_message(update, response)
 
 # Error Handler

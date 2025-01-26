@@ -66,19 +66,15 @@ Response Length: {response_length}
 
 # Commands
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    response = "Merhaba! GitHub'da sizi takip etmeyen kişileri gösterebilen bir botum."
-    await update.message.reply_text(response)
+    response = "Merhaba! GitHub'da sizi takip etmeyen kişileri gösterebilen bir botum. \n\nHello! This is a bot that can show you who doesn't follow you on GitHub."
+    await update.message.reply_text(response) 
     log_message(update, response)
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    response = "GitHub Kullanıcı Adınızı girerek kullanabilirsiniz. \nÖrnek: 'AhmetCanArslan'"
+    response = "GitHub Kullanıcı Adınızı girerek kullanabilirsiniz.\n\nGitHub username can be entered to use it.\n\nExample: 'AhmetCanArslan'"
     await update.message.reply_text(response)
     log_message(update, response)
 
-async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    response = "Custom command executed."
-    await update.message.reply_text(response)
-    log_message(update, response)
 
 # Messages
 async def handle_response(username: str) -> str:
@@ -87,11 +83,11 @@ async def handle_response(username: str) -> str:
         clean_username = sanitize_username(username)
         
         if not clean_username:
-            return "Geçersiz kullanıcı adı. Lütfen geçerli bir GitHub kullanıcı adı girin."
+            return "Geçersiz kullanıcı adı. Lütfen geçerli bir GitHub kullanıcı adı girin. \n\nInvalid username. Please enter a valid GitHub username."
         
         # Add delay protection
         if len(clean_username) > 39:  # GitHub username max length is 39
-            return "Kullanıcı adı çok uzun. Lütfen geçerli bir GitHub kullanıcı adı girin."
+            return "Kullanıcı adı çok uzun. Lütfen geçerli bir GitHub kullanıcı adı girin. \n\nUsername too long. Please enter a valid GitHub username."
 
         # GitHub API endpoints
         followers_url = f"https://api.github.com/users/{clean_username}/followers"
@@ -125,21 +121,21 @@ async def handle_response(username: str) -> str:
                 page += 1
 
         except requests.Timeout:
-            return "GitHub API yanıt vermedi. Lütfen daha sonra tekrar deneyin."
+            return "GitHub API yanıt vermedi. Lütfen daha sonra tekrar deneyin. \n\nThe GitHub API did not respond. Please try again later."
         except requests.RequestException:
-            return "Bağlantı hatası oluştu. Lütfen daha sonra tekrar deneyin."
+            return "Bağlantı hatası oluştu. Lütfen daha sonra tekrar deneyin. \n\nConnection error occurred. Please try again later."
 
         if followers_response.status_code == 404 or following_response.status_code == 404:
-            return "Kullanıcı adı bulunamadı. Lütfen geçerli bir GitHub kullanıcı adı girin."
+            return "Kullanıcı adı bulunamadı. Lütfen geçerli bir GitHub kullanıcı adı girin. \n\nUser not found. Please enter a valid GitHub username."
         
         # Find users who don't follow back
         unfollowers = following - followers
         
         if not unfollowers:
-            return f"Harika! Takip ettiğiniz herkes sizi geri takip ediyor!"
+            return f"Harika! Takip ettiğiniz herkes sizi geri takip ediyor!\n\nCongratulations! Everyone you follow is following you back!"
         
         # Create response message
-        response = f"Sizi takip etmeyen kullanıcılar ({len(unfollowers)}):\n\n"
+        response = f"Users not following you\n\nSizi takip etmeyen kullanıcılar ({len(unfollowers)}):\n\n"
         for user in sorted(unfollowers):
             response += f"• {user}\n"
         
@@ -147,7 +143,7 @@ async def handle_response(username: str) -> str:
         
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}")
-        return "Bir hata oluştu. Lütfen daha sonra tekrar deneyin."
+        return "Bir hata oluştu. Lütfen daha sonra tekrar deneyin. \n\nAn error occurred. Please try again later."
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_type: str = update.message.chat.type
@@ -180,7 +176,6 @@ def main() -> None:
         # Commands
         app.add_handler(CommandHandler('start', start_command))
         app.add_handler(CommandHandler('help', help_command))
-        app.add_handler(CommandHandler('custom', custom_command))
 
         # Messages
         app.add_handler(MessageHandler(filters.TEXT, handle_message))

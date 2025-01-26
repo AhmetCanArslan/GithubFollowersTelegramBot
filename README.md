@@ -42,6 +42,7 @@ Note: To prevent abuse, there's a limit of 3 messages per minute. Exceeding this
 - A Telegram Bot Token (get it from [@BotFather](https://t.me/botfather))
 - Your Telegram Bot's username
 - (Optional) GitHub Personal Access Token for higher API rate limits
+  - Required scopes: `user:follow` and `read:user`
 
 ### Installation
 
@@ -53,4 +54,8 @@ Note: To prevent abuse, there's a limit of 3 messages per minute. Exceeding this
    BOT_USERNAME=your_bot_username
    GITHUB_TOKEN=your_github_token (optional)
    ```
+   To create a GitHub token:
+   - Go to GitHub Settings → Developer Settings → Personal Access Tokens
+   - Generate a new token with `user:follow` and `read:user` scopes
+   - Copy the token and add it to your `.env` file
 4. Run the bot: `python main.py`

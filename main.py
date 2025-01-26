@@ -5,8 +5,9 @@ import requests
 import os
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from collections import defaultdict, deque
 
 # Configure logging
 logging.basicConfig(
@@ -30,6 +31,17 @@ GITHUB_TOKEN: Final[str] = os.getenv('GITHUB_TOKEN')
 # Validate that required environment variables are set
 if not TOKEN or not BOT_USERNAME:
     raise ValueError("Please ensure TELEGRAM_TOKEN and BOT_USERNAME are set in .env file")
+
+# Change the constant name and value
+USER_COOLDOWN_SECONDS = 15  # Changed from USER_COOLDOWN_MINUTES
+user_last_request = defaultdict(datetime.now)
+
+# Rate limiting constants
+MESSAGE_WINDOW_SECONDS = 60  # Time window to track messages (1 minute)
+MAX_MESSAGES = 3  # Maximum messages allowed in the window
+TEMP_BLOCK_SECONDS = 30  # Temporary block duration
+user_messages = defaultdict(lambda: deque(maxlen=MAX_MESSAGES))  # Track message timestamps
+user_block_until = defaultdict(lambda: datetime.min)  # Track block expiry time
 
 def sanitize_username(username: str) -> str:
     """Sanitize GitHub username to prevent injection attacks"""
@@ -60,7 +72,6 @@ def log_message(update: Update, response: str):
 Time: {current_time}
 From User: {user.first_name} {user.last_name if user.last_name else ''} (@{user.username if user.username else 'No username'})
 User ID: {user.id}
-IP/User ID: {user.id}
 Message: {update.message.text}
 Response Length: {response_length}
 =================""")
@@ -184,8 +195,38 @@ async def handle_response(username: str) -> str:
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_type: str = update.message.chat.type
     text: str = update.message.text
+    user_id = update.message.from_user.id
+    current_time = datetime.now()
+
+    # Check if user is temporarily blocked
+    if current_time < user_block_until[user_id]:
+        remaining_seconds = (user_block_until[user_id] - current_time).seconds
+        logger.warning(f"Blocked user attempt - User ID: {user_id}, Username: {update.message.from_user.username}")
+        await update.message.reply_text(
+            f"Çok fazla mesaj gönderdiniz. Lütfen {remaining_seconds} saniye bekleyin.\n\n"
+            f"Too many messages. Please wait {remaining_seconds} seconds.",
+            parse_mode='Markdown'
+        )
+        return
+
+    # Add current message timestamp to user's history
+    user_messages[user_id].append(current_time)
     
-    # Process only private messages
+    # Check if user has sent too many messages in the time window
+    if len(user_messages[user_id]) >= MAX_MESSAGES:
+        oldest_message = user_messages[user_id][0]
+        if (current_time - oldest_message).seconds < MESSAGE_WINDOW_SECONDS:
+            # User exceeded rate limit, apply temporary block
+            user_block_until[user_id] = current_time + timedelta(seconds=TEMP_BLOCK_SECONDS)
+            logger.warning(f"Applied temp block - User ID: {user_id}, Username: {update.message.from_user.username}")
+            await update.message.reply_text(
+                f"Çok fazla mesaj gönderdiniz. Lütfen {TEMP_BLOCK_SECONDS} saniye bekleyin.\n\n"
+                f"Too many messages. Please wait {TEMP_BLOCK_SECONDS} seconds.",
+                parse_mode='Markdown'
+            )
+            return
+
+    # Process the message if not blocked
     if message_type == 'group':
         if BOT_USERNAME in text:
             new_text = text.replace(BOT_USERNAME, '').strip()

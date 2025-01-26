@@ -89,60 +89,48 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # Messages
-async def handle_response(username: str) -> str:
+async def handle_response(username: str) -> list[str]:
     try:
-        # Sanitize input
-        clean_username = sanitize_username(username)
-        
-        if not clean_username:
-            return "Geçersiz kullanıcı adı. Lütfen geçerli bir GitHub kullanıcı adı girin. \n\nInvalid username. Please enter a valid GitHub username."
-        
-        # Add delay protection
-        if len(clean_username) > 39:  # GitHub username max length is 39
-            return "Kullanıcı adı çok uzun. Lütfen geçerli bir GitHub kullanıcı adı girin. \n\nUsername too long. Please enter a valid GitHub username."
-
-        # GitHub API endpoints
-        followers_url = f"https://api.github.com/users/{clean_username}/followers"
-        following_url = f"https://api.github.com/users/{clean_username}/following"
+        username = sanitize_username(username)
+        followers = set()
+        following = set()
         
         # Add headers for authentication
         headers = {}
         if GITHUB_TOKEN:
             headers['Authorization'] = f'token {GITHUB_TOKEN}'
-
-        try:
-            # Fetch all followers with pagination
-            followers = set()
-            page = 1
-            while True:
-                followers_response = requests.get(
-                    f"{followers_url}?page={page}&per_page=100",
-                    headers=headers,
-                    timeout=10
-                )
-                if followers_response.status_code != 200 or not followers_response.json():
-                    break
-                followers.update(user['login'] for user in followers_response.json())
-                page += 1
-
-            # Fetch all following with pagination
-            following = set()
-            page = 1
-            while True:
-                following_response = requests.get(
-                    f"{following_url}?page={page}&per_page=100",
-                    headers=headers,
-                    timeout=10
-                )
-                if following_response.status_code != 200 or not following_response.json():
-                    break
-                following.update(user['login'] for user in following_response.json())
-                page += 1
-
-        except requests.Timeout:
-            return "GitHub API yanıt vermedi. Lütfen daha sonra tekrar deneyin. \n\nThe GitHub API did not respond. Please try again later."
-        except requests.RequestException:
-            return "Bağlantı hatası oluştu. Lütfen daha sonra tekrar deneyin. \n\nConnection error occurred. Please try again later."
+        
+        # Get all followers with pagination
+        page = 1
+        while True:
+            followers_url = f"https://api.github.com/users/{username}/followers"
+            followers_response = requests.get(
+                f"{followers_url}?page={page}&per_page=100",
+                headers=headers,
+                timeout=10
+            )
+            
+            if followers_response.status_code != 200 or not followers_response.json():
+                break
+                
+            followers.update(user['login'] for user in followers_response.json())
+            page += 1
+        
+        # Get all following with pagination
+        page = 1
+        while True:
+            following_url = f"https://api.github.com/users/{username}/following"
+            following_response = requests.get(
+                f"{following_url}?page={page}&per_page=100",
+                headers=headers,
+                timeout=10
+            )
+            
+            if following_response.status_code != 200 or not following_response.json():
+                break
+                
+            following.update(user['login'] for user in following_response.json())
+            page += 1
 
         # Log remaining rate limit
         remaining = followers_response.headers.get('X-RateLimit-Remaining')
@@ -153,44 +141,63 @@ async def handle_response(username: str) -> str:
         if followers_response.status_code == 403:
             rate_reset_time = datetime.fromtimestamp(int(followers_response.headers.get('X-RateLimit-Reset', 0)))
             minutes_to_reset = max(0, (rate_reset_time - datetime.now()).total_seconds() / 60)
-            return f"GitHub API sınırına ulaşıldı. Lütfen {round(minutes_to_reset)} dakika sonra tekrar deneyin.\n\nGitHub API rate limit reached. Please try again in {round(minutes_to_reset)} minutes."
+            return [f"GitHub API sınırına ulaşıldı. Lütfen {round(minutes_to_reset)} dakika sonra tekrar deneyin.\n\nGitHub API rate limit reached. Please try again in {round(minutes_to_reset)} minutes."]
 
         if following_response.status_code == 403:
             rate_reset_time = datetime.fromtimestamp(int(following_response.headers.get('X-RateLimit-Reset', 0)))
             minutes_to_reset = max(0, (rate_reset_time - datetime.now()).total_seconds() / 60)
-            return f"GitHub API sınırına ulaşıldı. Lütfen {round(minutes_to_reset)} dakika sonra tekrar deneyin.\n\nGitHub API rate limit reached. Please try again in {round(minutes_to_reset)} minutes."
+            return [f"GitHub API sınırına ulaşıldı. Lütfen {round(minutes_to_reset)} dakika sonra tekrar deneyin.\n\nGitHub API rate limit reached. Please try again in {round(minutes_to_reset)} minutes."]
 
         if followers_response.status_code == 404 or following_response.status_code == 404:
-            return "Kullanıcı adı bulunamadı. Lütfen geçerli bir GitHub kullanıcı adı girin. \n\nUser not found. Please enter a valid GitHub username."
+            return ["Kullanıcı adı bulunamadı. Lütfen geçerli bir GitHub kullanıcı adı girin. \n\nUser not found. Please enter a valid GitHub username."]
         
         # Find users who don't follow back
         unfollowers = following - followers
         not_following_back = followers - following
         
-        response = ""
+        responses = []
+        current_response = ""
         
         if not unfollowers and not not_following_back:
-            return f"Harika! Takip ettiğiniz herkes sizi geri takip ediyor ve siz de sizi takip eden herkesi takip ediyorsunuz!\n\nCongratulations! Everyone you follow is following you back and you follow everyone who follows you!"
+            return [f"Harika! Takip ettiğiniz herkes sizi geri takip ediyor ve siz de sizi takip eden herkesi takip ediyorsunuz!\n\nCongratulations! Everyone you follow is following you back and you follow everyone who follows you!"]
         
         if not unfollowers:
-            response += "Harika! Sizi takip etmeyen kimse yok!\n\nGreat! Everyone you follow is following you back!\n\n"
+            current_response += "Harika! Sizi takip etmeyen kimse yok!\n\nGreat! Everyone you follow is following you back!\n\n"
         else:
-            response += f"Users not following you\n\nSizi takip etmeyen kullanıcılar ({len(unfollowers)}):\n\n"
+            current_response += f"Users not following you\n\nSizi takip etmeyen kullanıcılar ({len(unfollowers)}):\n\n"
+            # Split unfollowers into chunks
             for user in sorted(unfollowers):
-                response += f"• [{user}](https://github.com/{user})\n"
+                user_line = f"• [{user}](https://github.com/{user})\n"
+                if len(current_response) + len(user_line) > 3000:  # Telegram limit safety
+                    responses.append(current_response)
+                    current_response = user_line
+                else:
+                    current_response += user_line
+        
+        if current_response:
+            responses.append(current_response)
+            current_response = ""
         
         if not_following_back:
-            if unfollowers:  # Add a separator if we have both lists
-                response += "\n─────────────────────\n\n"
-            response += f"Users you don't follow back\n\nSizin takip etmediğiniz kullanıcılar ({len(not_following_back)}):\n\n"
+            header = f"\n─────────────────────\n\nUsers you don't follow back\n\nSizin takip etmediğiniz kullanıcılar ({len(not_following_back)}):\n\n"
+            current_response = header
+            
             for user in sorted(not_following_back):
-                response += f"• [{user}](https://github.com/{user})\n"
+                user_line = f"• [{user}](https://github.com/{user})\n"
+                if len(current_response) + len(user_line) > 3000:
+                    responses.append(current_response)
+                    current_response = user_line
+                else:
+                    current_response += user_line
+            
+            if current_response:
+                responses.append(current_response)
         
-        return response
+        return responses
         
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}")
-        return "Bir hata oluştu. Lütfen daha sonra tekrar deneyin. \n\nAn error occurred. Please try again later."
+        return ["Bir hata oluştu. Lütfen daha sonra tekrar deneyin. \n\nAn error occurred. Please try again later."]
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_type: str = update.message.chat.type
@@ -230,14 +237,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if message_type == 'group':
         if BOT_USERNAME in text:
             new_text = text.replace(BOT_USERNAME, '').strip()
-            response = await handle_response(new_text)
+            responses = await handle_response(new_text)
         else:
             return
     else:
-        response = await handle_response(text)
+        responses = await handle_response(text)
     
-    await update.message.reply_text(response, parse_mode='Markdown', disable_web_page_preview=True)
-    log_message(update, response)
+    # Send each response separately
+    for response in responses:
+        await update.message.reply_text(response, parse_mode='Markdown', disable_web_page_preview=True)
+    
+    log_message(update, responses[0])  # Log first response or modify logging as needed
 
 # Error Handler
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):

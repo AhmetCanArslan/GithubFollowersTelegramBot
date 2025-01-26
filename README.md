@@ -27,6 +27,11 @@ A Telegram bot that helps you discover who doesn't follow you back on GitHub and
 
 Note: To prevent abuse, there's a limit of 3 messages per minute. Exceeding this will result in a 30-second temporary block.
 
+![image](https://github.com/user-attachments/assets/d8ba14c1-fab0-49f2-a231-d3e932ba79f9)
+![image](https://github.com/user-attachments/assets/275d903f-dd8e-4938-96be-71c34aa8924f)
+![image](https://github.com/user-attachments/assets/241d0d89-e8b5-46a0-a832-8c4a8af66e8c)
+
+
 ## Setup Your Own Instance
 
 ### Prerequisites

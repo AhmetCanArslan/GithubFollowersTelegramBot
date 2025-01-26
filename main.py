@@ -25,6 +25,7 @@ load_dotenv()
 # Get token from environment variables
 TOKEN: Final[str] = os.getenv('TELEGRAM_TOKEN')
 BOT_USERNAME: Final[str] = os.getenv('BOT_USERNAME')
+GITHUB_TOKEN: Final[str] = os.getenv('GITHUB_TOKEN')
 
 # Validate that required environment variables are set
 if not TOKEN or not BOT_USERNAME:
@@ -93,6 +94,11 @@ async def handle_response(username: str) -> str:
         followers_url = f"https://api.github.com/users/{clean_username}/followers"
         following_url = f"https://api.github.com/users/{clean_username}/following"
         
+        # Add headers for authentication
+        headers = {}
+        if GITHUB_TOKEN:
+            headers['Authorization'] = f'token {GITHUB_TOKEN}'
+
         try:
             # Fetch all followers with pagination
             followers = set()
@@ -100,6 +106,7 @@ async def handle_response(username: str) -> str:
             while True:
                 followers_response = requests.get(
                     f"{followers_url}?page={page}&per_page=100",
+                    headers=headers,
                     timeout=10
                 )
                 if followers_response.status_code != 200 or not followers_response.json():
@@ -113,6 +120,7 @@ async def handle_response(username: str) -> str:
             while True:
                 following_response = requests.get(
                     f"{following_url}?page={page}&per_page=100",
+                    headers=headers,
                     timeout=10
                 )
                 if following_response.status_code != 200 or not following_response.json():
@@ -125,19 +133,47 @@ async def handle_response(username: str) -> str:
         except requests.RequestException:
             return "Bağlantı hatası oluştu. Lütfen daha sonra tekrar deneyin. \n\nConnection error occurred. Please try again later."
 
+        # Log remaining rate limit
+        remaining = followers_response.headers.get('X-RateLimit-Remaining')
+        limit = followers_response.headers.get('X-RateLimit-Limit')
+        logger.info(f"GitHub API Rate Limit - Remaining: {remaining}/{limit}")
+
+        # Check rate limit from first API response
+        if followers_response.status_code == 403:
+            rate_reset_time = datetime.fromtimestamp(int(followers_response.headers.get('X-RateLimit-Reset', 0)))
+            minutes_to_reset = max(0, (rate_reset_time - datetime.now()).total_seconds() / 60)
+            return f"GitHub API sınırına ulaşıldı. Lütfen {round(minutes_to_reset)} dakika sonra tekrar deneyin.\n\nGitHub API rate limit reached. Please try again in {round(minutes_to_reset)} minutes."
+
+        if following_response.status_code == 403:
+            rate_reset_time = datetime.fromtimestamp(int(following_response.headers.get('X-RateLimit-Reset', 0)))
+            minutes_to_reset = max(0, (rate_reset_time - datetime.now()).total_seconds() / 60)
+            return f"GitHub API sınırına ulaşıldı. Lütfen {round(minutes_to_reset)} dakika sonra tekrar deneyin.\n\nGitHub API rate limit reached. Please try again in {round(minutes_to_reset)} minutes."
+
         if followers_response.status_code == 404 or following_response.status_code == 404:
             return "Kullanıcı adı bulunamadı. Lütfen geçerli bir GitHub kullanıcı adı girin. \n\nUser not found. Please enter a valid GitHub username."
         
         # Find users who don't follow back
         unfollowers = following - followers
+        not_following_back = followers - following
+        
+        response = ""
+        
+        if not unfollowers and not not_following_back:
+            return f"Harika! Takip ettiğiniz herkes sizi geri takip ediyor ve siz de sizi takip eden herkesi takip ediyorsunuz!\n\nCongratulations! Everyone you follow is following you back and you follow everyone who follows you!"
         
         if not unfollowers:
-            return f"Harika! Takip ettiğiniz herkes sizi geri takip ediyor!\n\nCongratulations! Everyone you follow is following you back!"
+            response += "Harika! Sizi takip etmeyen kimse yok!\n\nGreat! Everyone you follow is following you back!\n\n"
+        else:
+            response += f"Users not following you\n\nSizi takip etmeyen kullanıcılar ({len(unfollowers)}):\n\n"
+            for user in sorted(unfollowers):
+                response += f"• [{user}](https://github.com/{user})\n"
         
-        # Create response message with markdown links
-        response = f"Users not following you\n\nSizi takip etmeyen kullanıcılar ({len(unfollowers)}):\n\n"
-        for user in sorted(unfollowers):
-            response += f"• [{user}](https://github.com/{user})\n"
+        if not_following_back:
+            if unfollowers:  # Add a separator if we have both lists
+                response += "\n─────────────────────\n\n"
+            response += f"Users you don't follow back\n\nSizin takip etmediğiniz kullanıcılar ({len(not_following_back)}):\n\n"
+            for user in sorted(not_following_back):
+                response += f"• [{user}](https://github.com/{user})\n"
         
         return response
         

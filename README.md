@@ -1,5 +1,7 @@
 # GitHub Followers Telegram Bot
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A Telegram bot that helps you discover who doesn't follow you back on GitHub and who follows you that you don't follow back.
 
 ## Features

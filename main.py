@@ -78,7 +78,7 @@ Response Length: {response_length}
 
 # Commands
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    response = "Merhaba! GitHub'da sizi takip etmeyen kişileri gösterebilen bir botum. \n\nHello! This is a bot that can show you who doesn't follow you on GitHub."
+    response = "Merhaba! GitHub'da sizi takip etmeyen kişileri gösterebilen bir botum. Kullanıcı adınızı girerek kullanabilirsiniz. \n\nHello! This is a bot that can show you who doesn't follow you on GitHub. You can use your username to use it."
     await update.message.reply_text(response) 
     log_message(update, response)
 

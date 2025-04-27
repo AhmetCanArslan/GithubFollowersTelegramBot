@@ -179,7 +179,7 @@ async def handle_response(username: str) -> list[str]:
             current_response = ""
         
         if not_following_back:
-            header = f"\n─────────────────────\n\nUsers you don't follow back\n\nSizin takip etmediğiniz kullanıcılar ({len(not_following_back)}):\n\n"
+            header = f"\n\nUsers you don't follow back\n\nSizin takip etmediğiniz kullanıcılar ({len(not_following_back)}):\n\n"
             current_response = header
             
             for user in sorted(not_following_back):
